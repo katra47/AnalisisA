@@ -19,6 +19,7 @@ import {
   ListItemButton,
   ListItemText,
   Paper,
+  TextField,
   Typography,
 } from '@mui/material'
 
@@ -42,11 +43,21 @@ import {
   descargarExcelDrive,
 } from './googleDrive/googleDrive'
 
+
 function CargarExcel() {
+
   const inputRef = useRef(null)
+
+
+  // ==========================================
+  // ESTADOS
+  // ==========================================
 
   const [archivo, setArchivo] =
     useState(null)
+
+  const [fechaCarga, setFechaCarga] =
+    useState('')
 
   const [error, setError] =
     useState('')
@@ -69,80 +80,108 @@ function CargarExcel() {
   const [cargandoDrive, setCargandoDrive] =
     useState(false)
 
+
+
   // ==========================================
   // INICIALIZAR GOOGLE DRIVE
   // ==========================================
 
   useEffect(() => {
+
     let intentos = 0
 
     const iniciarGoogle = () => {
+
       const inicializado =
         inicializarGoogleDrive(
           async (respuesta) => {
+
             if (respuesta.error) {
+
               setError(
                 'No fue posible conectar con Google Drive.',
               )
+
               return
             }
 
             try {
+
               setCargandoDrive(true)
 
               const archivos =
                 await obtenerArchivosExcelDrive()
 
               setArchivosDrive(archivos)
+
               setDialogoDrive(true)
 
               setMensaje(
                 'Google Drive conectado correctamente.',
               )
+
             } catch (err) {
+
               setError(
                 err.message ||
-                  'No fue posible leer Google Drive.',
+                'No fue posible leer Google Drive.',
               )
+
             } finally {
+
               setCargandoDrive(false)
+
             }
           },
         )
 
+
       if (!inicializado) {
+
         intentos += 1
 
         if (intentos < 20) {
+
           setTimeout(
             iniciarGoogle,
             300,
           )
+
         }
       }
     }
 
     iniciarGoogle()
+
   }, [])
+
+
 
   // ==========================================
   // ABRIR GOOGLE DRIVE
   // ==========================================
 
   const conectarGoogleDrive = () => {
+
     setError('')
     setMensaje('')
     setResultado(null)
 
     try {
+
       iniciarSesionGoogleDrive()
+
     } catch (err) {
+
       setError(
         err.message ||
-          'No fue posible conectar con Google Drive.',
+        'No fue posible conectar con Google Drive.',
       )
+
     }
   }
+
+
 
   // ==========================================
   // SELECCIONAR ARCHIVO DE DRIVE
@@ -150,9 +189,13 @@ function CargarExcel() {
 
   const seleccionarArchivoDrive =
     async (archivoDrive) => {
+
       try {
+
         setCargandoDrive(true)
+
         setError('')
+
         setMensaje(
           'Descargando archivo desde Google Drive...',
         )
@@ -163,23 +206,36 @@ function CargarExcel() {
           )
 
         setArchivo(file)
+
+        // Limpiamos la fecha para obligar
+        // a confirmar la fecha del nuevo archivo.
+        setFechaCarga('')
+
         setResultado(null)
+
         setDialogoDrive(false)
 
         setMensaje(
           'Archivo de Google Drive seleccionado correctamente.',
         )
+
       } catch (err) {
+
         setMensaje('')
 
         setError(
           err.message ||
-            'No fue posible descargar el archivo.',
+          'No fue posible descargar el archivo.',
         )
+
       } finally {
+
         setCargandoDrive(false)
+
       }
     }
+
+
 
   // ==========================================
   // SELECCIONAR ARCHIVO LOCAL
@@ -188,6 +244,7 @@ function CargarExcel() {
   const seleccionarArchivo = (
     event,
   ) => {
+
     const file =
       event.target.files?.[0]
 
@@ -199,13 +256,17 @@ function CargarExcel() {
       return
     }
 
+
     const extension = file.name
       .split('.')
       .pop()
       .toLowerCase()
 
+
     if (extension !== 'xlsx') {
+
       setArchivo(null)
+      setFechaCarga('')
 
       setError(
         'El archivo debe estar en formato .xlsx.',
@@ -216,23 +277,40 @@ function CargarExcel() {
       return
     }
 
+
     setArchivo(file)
+
+    // Cada archivo debe confirmar su propia fecha.
+    setFechaCarga('')
   }
+
+
 
   // ==========================================
   // ELIMINAR ARCHIVO
   // ==========================================
 
   const eliminarArchivo = () => {
+
     setArchivo(null)
+
+    setFechaCarga('')
+
     setError('')
+
     setMensaje('')
+
     setResultado(null)
 
+
     if (inputRef.current) {
+
       inputRef.current.value = ''
+
     }
   }
+
+
 
   // ==========================================
   // PROCESAR ARCHIVO
@@ -240,7 +318,14 @@ function CargarExcel() {
 
   const procesarArchivo =
     async () => {
+
+
+      // ========================================
+      // VALIDAR ARCHIVO
+      // ========================================
+
       if (!archivo) {
+
         setError(
           'Selecciona un archivo Excel antes de continuar.',
         )
@@ -248,13 +333,34 @@ function CargarExcel() {
         return
       }
 
+
+      // ========================================
+      // VALIDAR FECHA
+      // ========================================
+
+      if (!fechaCarga) {
+
+        setError(
+          'Selecciona la fecha correspondiente al archivo antes de continuar.',
+        )
+
+        return
+      }
+
+
       try {
+
         setProcesando(true)
+
         setError('')
+
         setMensaje(
           'Procesando archivo...',
         )
+
         setResultado(null)
+
+
 
         // ======================================
         // LEER ARCHIVO
@@ -262,6 +368,7 @@ function CargarExcel() {
 
         const buffer =
           await archivo.arrayBuffer()
+
 
         const workbook =
           XLSX.read(
@@ -271,13 +378,18 @@ function CargarExcel() {
             },
           )
 
+
         if (
           !workbook.SheetNames.length
         ) {
+
           throw new Error(
             'El archivo Excel no contiene hojas.',
           )
+
         }
+
+
 
         // ======================================
         // BUSCAR HOJA BD
@@ -285,16 +397,22 @@ function CargarExcel() {
 
         const nombreHoja = 'BD'
 
+
         const hoja =
           workbook.Sheets[
             nombreHoja
           ]
 
+
         if (!hoja) {
+
           throw new Error(
             'No se encontró la hoja "BD" en el archivo Excel.',
           )
+
         }
+
+
 
         // ======================================
         // CONVERTIR XLSX A MATRIZ
@@ -303,6 +421,7 @@ function CargarExcel() {
         setMensaje(
           'Leyendo información del archivo...',
         )
+
 
         const datos =
           XLSX.utils.sheet_to_json(
@@ -314,21 +433,28 @@ function CargarExcel() {
             },
           )
 
+
         console.log(
           'Nombre de hoja:',
           nombreHoja,
         )
+
 
         console.log(
           'Cantidad de filas:',
           datos.length,
         )
 
+
         if (datos.length < 2) {
+
           throw new Error(
             'La hoja no contiene información suficiente.',
           )
+
         }
+
+
 
         // ======================================
         // ANALIZAR EVOLUTIVO
@@ -338,32 +464,39 @@ function CargarExcel() {
           'Analizando información para Evolutivo...',
         )
 
+
         const analisis =
           analizarEvolutivo(datos)
 
+
         if (!analisis) {
+
           throw new Error(
             'No fue posible generar el análisis Evolutivo.',
           )
+
         }
+
+
 
         // ======================================
         // FECHA DEL ANÁLISIS
         // ======================================
+        //
+        // IMPORTANTE:
+        // Ya NO usamos new Date().
+        //
+        // Utilizamos la fecha seleccionada
+        // por el usuario.
+        //
+        // Ejemplo:
+        // 2026-10-16
+        //
+        // ======================================
 
-        const hoy = new Date()
+        const fecha = fechaCarga
 
-        const fecha = [
-          hoy.getFullYear(),
 
-          String(
-            hoy.getMonth() + 1,
-          ).padStart(2, '0'),
-
-          String(
-            hoy.getDate(),
-          ).padStart(2, '0'),
-        ].join('-')
 
         // ======================================
         // GUARDAR RESULTADO ACTUAL
@@ -373,23 +506,39 @@ function CargarExcel() {
           'Guardando resultado actual...',
         )
 
+
         await guardarAnalisisActual(
           'evolutivo',
           analisis,
         )
 
+
+
         // ======================================
-        // GUARDAR HISTÓRICO
+        // GUARDAR / ACTUALIZAR HISTÓRICO
+        // ======================================
+        //
+        // fecha = fecha elegida por usuario
+        //
+        // Si analisisFirestore usa esta fecha
+        // como ID:
+        //
+        // EXISTE -> reemplaza
+        // NO EXISTE -> crea
+        //
         // ======================================
 
         setMensaje(
-          'Guardando histórico...',
+          `Guardando histórico del ${fecha}...`,
         )
+
 
         await guardarHistoricoEvolutivo(
           fecha,
           analisis,
         )
+
+
 
         // ======================================
         // TERMINADO
@@ -397,35 +546,49 @@ function CargarExcel() {
 
         setResultado(analisis)
 
+
         setMensaje(
-          `Proceso completado correctamente. ${analisis.filasAnalizadas.toLocaleString()} registros utilizados para Evolutivo.`,
+          `Proceso completado correctamente para la fecha ${fecha}. ${analisis.filasAnalizadas.toLocaleString()} registros utilizados para Evolutivo.`,
         )
+
 
         console.log(
           'Resultado Evolutivo:',
           analisis,
         )
 
+
         console.log(
           'Fecha guardada:',
           fecha,
         )
+
+
       } catch (err) {
+
         console.error(
           'Error procesando archivo:',
           err,
         )
 
+
         setMensaje('')
+
 
         setError(
           err.message ||
-            'Ocurrió un error al procesar el archivo.',
+          'Ocurrió un error al procesar el archivo.',
         )
+
+
       } finally {
+
         setProcesando(false)
+
       }
     }
+
+
 
   // ==========================================
   // FORMATEAR TAMAÑO
@@ -434,16 +597,21 @@ function CargarExcel() {
   const formatearTamano = (
     bytes,
   ) => {
+
     if (!bytes) {
       return '0 MB'
     }
+
 
     const mb =
       Number(bytes) /
       (1024 * 1024)
 
+
     return `${mb.toFixed(2)} MB`
   }
+
+
 
   // ==========================================
   // FORMATEAR FECHA DRIVE
@@ -452,16 +620,26 @@ function CargarExcel() {
   const formatearFechaDrive = (
     fecha,
   ) => {
+
     if (!fecha) {
       return ''
     }
 
+
     return new Date(
       fecha,
     ).toLocaleString()
+
   }
 
+
+
+  // ==========================================
+  // PÁGINA
+  // ==========================================
+
   return (
+
     <Box
       sx={{
         width: '100%',
@@ -469,9 +647,18 @@ function CargarExcel() {
         mx: 'auto',
       }}
     >
-      {/* TÍTULO */}
 
-      <Box sx={{ mb: 4 }}>
+
+      {/* ===================================== */}
+      {/* TÍTULO */}
+      {/* ===================================== */}
+
+      <Box
+        sx={{
+          mb: 4,
+        }}
+      >
+
         <Typography
           variant="h4"
           sx={{
@@ -483,30 +670,44 @@ function CargarExcel() {
           Cargar archivo Excel
         </Typography>
 
+
         <Typography
           variant="body1"
           color="text.secondary"
         >
-          Selecciona el archivo de
-          asignación que deseas
-          procesar.
+          Selecciona el archivo de asignación que deseas
+          procesar e indica la fecha correspondiente.
         </Typography>
+
       </Box>
 
+
+
+      {/* ===================================== */}
       {/* ERROR */}
+      {/* ===================================== */}
 
       {error && (
+
         <Alert
           severity="error"
-          sx={{ mb: 3 }}
+          sx={{
+            mb: 3,
+          }}
         >
           {error}
         </Alert>
+
       )}
 
+
+
+      {/* ===================================== */}
       {/* MENSAJE */}
+      {/* ===================================== */}
 
       {mensaje && (
+
         <Alert
           severity={
             procesando ||
@@ -514,17 +715,25 @@ function CargarExcel() {
               ? 'info'
               : 'success'
           }
-          sx={{ mb: 3 }}
+          sx={{
+            mb: 3,
+          }}
         >
           {mensaje}
         </Alert>
+
       )}
 
+
+
+      {/* ===================================== */}
       {/* ÁREA DE CARGA */}
+      {/* ===================================== */}
 
       <Paper
         elevation={0}
         sx={{
+
           p: {
             xs: 3,
             sm: 5,
@@ -535,16 +744,21 @@ function CargarExcel() {
           border:
             '2px dashed #cbd5e1',
 
-          bgcolor: '#ffffff',
+          bgcolor:
+            '#ffffff',
 
-          textAlign: 'center',
+          textAlign:
+            'center',
 
           '&:hover': {
+
             borderColor:
               '#0086c9',
+
           },
         }}
       >
+
         <UploadFileRoundedIcon
           sx={{
             fontSize: 64,
@@ -552,6 +766,7 @@ function CargarExcel() {
             mb: 2,
           }}
         />
+
 
         <Typography
           variant="h6"
@@ -563,6 +778,7 @@ function CargarExcel() {
           Archivo Excel
         </Typography>
 
+
         <Typography
           variant="body2"
           color="text.secondary"
@@ -571,9 +787,9 @@ function CargarExcel() {
             mb: 3,
           }}
         >
-          Selecciona el archivo diario
-          en formato XLSX.
+          Selecciona el archivo diario en formato XLSX.
         </Typography>
+
 
         <Box
           sx={{
@@ -583,6 +799,9 @@ function CargarExcel() {
             flexWrap: 'wrap',
           }}
         >
+
+          {/* ARCHIVO LOCAL */}
+
           <Button
             variant="contained"
             disabled={
@@ -610,6 +829,9 @@ function CargarExcel() {
             Seleccionar archivo
           </Button>
 
+
+          {/* GOOGLE DRIVE */}
+
           <Button
             variant="outlined"
             disabled={
@@ -629,11 +851,17 @@ function CargarExcel() {
               px: 3,
             }}
           >
-            {cargandoDrive
-              ? 'Cargando Drive...'
-              : 'Seleccionar desde Google Drive'}
+
+            {
+              cargandoDrive
+                ? 'Cargando Drive...'
+                : 'Seleccionar desde Google Drive'
+            }
+
           </Button>
+
         </Box>
+
 
         <input
           ref={inputRef}
@@ -644,22 +872,35 @@ function CargarExcel() {
           }
           hidden
         />
+
       </Paper>
 
+
+
+      {/* ===================================== */}
       {/* ARCHIVO SELECCIONADO */}
+      {/* ===================================== */}
 
       {archivo && (
+
         <Paper
           elevation={0}
           sx={{
             mt: 3,
             p: 2.5,
             borderRadius: 3,
+
             border:
               '1px solid #e2e8f0',
-            bgcolor: '#ffffff',
+
+            bgcolor:
+              '#ffffff',
           }}
         >
+
+
+          {/* INFORMACIÓN DEL ARCHIVO */}
+
           <Box
             sx={{
               display: 'flex',
@@ -667,28 +908,38 @@ function CargarExcel() {
               gap: 2,
             }}
           >
+
             <Box
               sx={{
                 width: 48,
                 height: 48,
                 borderRadius: 2,
-                bgcolor: '#eef8fc',
-                display: 'flex',
+
+                bgcolor:
+                  '#eef8fc',
+
+                display:
+                  'flex',
+
                 alignItems:
                   'center',
+
                 justifyContent:
                   'center',
+
                 flexShrink: 0,
               }}
             >
+
               <DescriptionRoundedIcon
                 sx={{
-                  color:
-                    '#0086c9',
+                  color: '#0086c9',
                   fontSize: 28,
                 }}
               />
+
             </Box>
+
 
             <Box
               sx={{
@@ -696,16 +947,19 @@ function CargarExcel() {
                 minWidth: 0,
               }}
             >
+
               <Typography
                 variant="body1"
                 sx={{
                   fontWeight: 600,
-                  color:
-                    '#123f5c',
+                  color: '#123f5c',
+
                   overflow:
                     'hidden',
+
                   textOverflow:
                     'ellipsis',
+
                   whiteSpace:
                     'nowrap',
                 }}
@@ -713,23 +967,27 @@ function CargarExcel() {
                 {archivo.name}
               </Typography>
 
+
               <Box
                 sx={{
                   display: 'flex',
-                  alignItems:
-                    'center',
+                  alignItems: 'center',
                   gap: 1,
                   mt: 0.5,
                 }}
               >
+
                 <Typography
                   variant="body2"
                   color="text.secondary"
                 >
-                  {formatearTamano(
-                    archivo.size,
-                  )}
+                  {
+                    formatearTamano(
+                      archivo.size,
+                    )
+                  }
                 </Typography>
+
 
                 <Chip
                   label="XLSX"
@@ -739,12 +997,17 @@ function CargarExcel() {
                     fontSize: 11,
                   }}
                 />
+
               </Box>
+
             </Box>
+
 
             <Button
               color="error"
-              disabled={procesando}
+              disabled={
+                procesando
+              }
               startIcon={
                 <DeleteOutlineRoundedIcon />
               }
@@ -758,24 +1021,111 @@ function CargarExcel() {
             >
               Quitar
             </Button>
+
           </Box>
+
+
+
+          {/* ================================= */}
+          {/* FECHA DEL ARCHIVO */}
+          {/* ================================= */}
+
+          <Box
+            sx={{
+              mt: 3,
+              pt: 2.5,
+
+              borderTop:
+                '1px solid #e2e8f0',
+            }}
+          >
+
+            <Typography
+              variant="body1"
+              sx={{
+                fontWeight: 700,
+                color: '#123f5c',
+                mb: 0.5,
+              }}
+            >
+              Fecha correspondiente al archivo
+            </Typography>
+
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                mb: 2,
+              }}
+            >
+              Selecciona la fecha que corresponde a la
+              información del archivo. Esta fecha será
+              utilizada para actualizar el histórico de
+              Evolutivo.
+            </Typography>
+
+
+            <TextField
+              type="date"
+              label="Fecha del análisis"
+              value={fechaCarga}
+              onChange={(event) => {
+
+                setFechaCarga(
+                  event.target.value,
+                )
+
+                setError('')
+
+              }}
+              disabled={
+                procesando
+              }
+              fullWidth
+              slotProps={{
+                inputLabel: {
+                  shrink: true,
+                },
+              }}
+              helperText={
+                fechaCarga
+                  ? `El histórico se guardará o actualizará con la fecha ${fechaCarga}.`
+                  : 'La fecha es obligatoria antes de procesar.'
+              }
+              sx={{
+                maxWidth: 400,
+              }}
+            />
+
+          </Box>
+
         </Paper>
+
       )}
 
+
+
+      {/* ===================================== */}
       {/* PROCESAR */}
+      {/* ===================================== */}
 
       <Box
         sx={{
           display: 'flex',
+
           justifyContent:
             'flex-end',
+
           mt: 3,
         }}
       >
+
         <Button
           variant="contained"
           disabled={
             !archivo ||
+            !fechaCarga ||
             procesando
           }
           startIcon={
@@ -785,38 +1135,63 @@ function CargarExcel() {
             procesarArchivo
           }
           sx={{
-            bgcolor: '#123f5c',
-            textTransform: 'none',
-            fontWeight: 600,
-            borderRadius: 2,
+            bgcolor:
+              '#123f5c',
+
+            textTransform:
+              'none',
+
+            fontWeight:
+              600,
+
+            borderRadius:
+              2,
+
             px: 4,
             py: 1.2,
 
             '&:hover': {
-              bgcolor: '#0d3047',
+
+              bgcolor:
+                '#0d3047',
+
             },
           }}
         >
-          {procesando
-            ? 'Procesando...'
-            : 'Procesar archivo'}
+
+          {
+            procesando
+              ? 'Procesando...'
+              : 'Procesar archivo'
+          }
+
         </Button>
+
       </Box>
 
+
+
+      {/* ===================================== */}
       {/* RESULTADO */}
+      {/* ===================================== */}
 
       {resultado && (
+
         <Paper
           elevation={0}
           sx={{
             mt: 3,
             p: 3,
             borderRadius: 3,
+
             border:
               '1px solid #e2e8f0',
-            bgcolor: '#ffffff',
+
+            bgcolor:
+              '#ffffff',
           }}
         >
+
           <Typography
             variant="h6"
             sx={{
@@ -828,9 +1203,25 @@ function CargarExcel() {
             Resultado Evolutivo
           </Typography>
 
+
+          {/* FECHA */}
+
+          <Typography
+            sx={{
+              mb: 2,
+            }}
+          >
+            Fecha del análisis:{' '}
+
+            <strong>
+              {fechaCarga}
+            </strong>
+          </Typography>
+
+
           <Typography>
-            Localidades 100%
-            asignadas:{' '}
+            Localidades 100% asignadas:{' '}
+
             <strong>
               {
                 resultado.locCompletas
@@ -838,8 +1229,10 @@ function CargarExcel() {
             </strong>
           </Typography>
 
+
           <Typography>
             Localidades parciales:{' '}
+
             <strong>
               {
                 resultado.locParciales
@@ -847,9 +1240,10 @@ function CargarExcel() {
             </strong>
           </Typography>
 
+
           <Typography>
-            Localidades sin
-            asignación:{' '}
+            Localidades sin asignación:{' '}
+
             <strong>
               {
                 resultado.locSinAsignacion
@@ -857,127 +1251,194 @@ function CargarExcel() {
             </strong>
           </Typography>
 
-          <Typography sx={{ mt: 2 }}>
+
+          <Typography
+            sx={{
+              mt: 2,
+            }}
+          >
             Total clientes asignados:{' '}
+
             <strong>
-              {resultado.totalAsignados.toLocaleString()}
+              {
+                resultado.totalAsignados
+                  .toLocaleString()
+              }
             </strong>
           </Typography>
 
+
           <Typography>
-            Total clientes
-            registrados:{' '}
+            Total clientes registrados:{' '}
+
             <strong>
-              {resultado.totalRegistrados.toLocaleString()}
+              {
+                resultado.totalRegistrados
+                  .toLocaleString()
+              }
             </strong>
           </Typography>
+
 
           <Typography>
             Total clientes a operar:{' '}
+
             <strong>
-              {resultado.totalOperar.toLocaleString()}
+              {
+                resultado.totalOperar
+                  .toLocaleString()
+              }
             </strong>
           </Typography>
 
-          <Typography sx={{ mt: 2 }}>
+
+          <Typography
+            sx={{
+              mt: 2,
+            }}
+          >
             % de asignación:{' '}
+
             <strong>
-              {(
-                resultado.porcentajeAsignacion *
-                100
-              ).toFixed(2)}
+
+              {
+                (
+                  resultado
+                    .porcentajeAsignacion *
+                  100
+                ).toFixed(2)
+              }
+
               %
+
             </strong>
           </Typography>
+
         </Paper>
+
       )}
+
+
 
       {/* ===================================== */}
       {/* SELECTOR GOOGLE DRIVE */}
       {/* ===================================== */}
 
       <Dialog
-        open={dialogoDrive}
+        open={
+          dialogoDrive
+        }
         onClose={() =>
           setDialogoDrive(false)
         }
         fullWidth
         maxWidth="sm"
       >
+
         <DialogTitle>
           Seleccionar archivo de Google Drive
         </DialogTitle>
 
-        <DialogContent dividers>
-          {archivosDrive.length ===
-          0 ? (
-            <Typography
-              color="text.secondary"
-            >
-              No se encontraron archivos
-              XLSX en Google Drive.
-            </Typography>
-          ) : (
-            <List
-              disablePadding
-            >
-              {archivosDrive.map(
-                (item) => (
-                  <ListItemButton
-                    key={item.id}
-                    disabled={
-                      cargandoDrive
-                    }
-                    onClick={() =>
-                      seleccionarArchivoDrive(
-                        item,
-                      )
-                    }
-                    sx={{
-                      borderRadius: 2,
-                      mb: 0.5,
-                    }}
-                  >
-                    <DescriptionRoundedIcon
-                      sx={{
-                        mr: 2,
-                        color:
-                          '#0086c9',
-                      }}
-                    />
 
-                    <ListItemText
-                      primary={
-                        item.name
-                      }
-                      secondary={`${formatearTamano(
-                        item.size,
-                      )} · ${formatearFechaDrive(
-                        item.modifiedTime,
-                      )}`}
-                    />
-                  </ListItemButton>
-                ),
-              )}
-            </List>
-          )}
+        <DialogContent dividers>
+
+          {
+            archivosDrive.length === 0
+              ? (
+
+                <Typography
+                  color="text.secondary"
+                >
+                  No se encontraron archivos XLSX
+                  en Google Drive.
+                </Typography>
+
+              )
+              : (
+
+                <List disablePadding>
+
+                  {
+                    archivosDrive.map(
+                      (item) => (
+
+                        <ListItemButton
+                          key={
+                            item.id
+                          }
+                          disabled={
+                            cargandoDrive
+                          }
+                          onClick={() =>
+                            seleccionarArchivoDrive(
+                              item,
+                            )
+                          }
+                          sx={{
+                            borderRadius: 2,
+                            mb: 0.5,
+                          }}
+                        >
+
+                          <DescriptionRoundedIcon
+                            sx={{
+                              mr: 2,
+
+                              color:
+                                '#0086c9',
+                            }}
+                          />
+
+
+                          <ListItemText
+                            primary={
+                              item.name
+                            }
+                            secondary={
+                              `${formatearTamano(
+                                item.size,
+                              )} · ${formatearFechaDrive(
+                                item.modifiedTime,
+                              )}`
+                            }
+                          />
+
+                        </ListItemButton>
+
+                      ),
+                    )
+                  }
+
+                </List>
+
+              )
+          }
+
         </DialogContent>
 
+
         <DialogActions>
+
           <Button
             onClick={() =>
               setDialogoDrive(false)
             }
             sx={{
-              textTransform: 'none',
+              textTransform:
+                'none',
             }}
           >
             Cancelar
           </Button>
+
         </DialogActions>
+
       </Dialog>
+
     </Box>
+
   )
 }
+
 
 export default CargarExcel
